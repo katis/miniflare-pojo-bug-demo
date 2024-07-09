@@ -36,6 +36,31 @@ const test = it.extend<{ miniflare: Miniflare }>({
             objectMethod() {
               return { value: 123 }
             }
+            
+            get subService() {
+              return new SubService("test-id")
+            }
+
+            getSubService(id) {
+              return new SubService(id)
+            }
+          }
+
+          class SubService extends RpcTarget {
+            #id
+
+            constructor(id) {
+              super()
+              this.#id = id
+            }
+
+            get id() {
+              return this.#id
+            }
+
+            getId() {
+              return this.#id
+            }
           }
         `,
         },
@@ -50,10 +75,24 @@ const test = it.extend<{ miniflare: Miniflare }>({
 });
 
 describe("miniflare issues", () => {
-  test("Cannot stringify POJOs with symbolic keys", async ({ miniflare }) => {
+  test("Returning an object over bindings works", async ({ miniflare }) => {
     const bindings = await miniflare.getBindings<{ SERVICE: any }>("worker-a");
 
     const o = await bindings.SERVICE.objectMethod();
     expect(o).toEqual({ value: 123 });
+  });
+
+  test("Returning an RpcTarget from getter works", async ({ miniflare }) => {
+    const bindings = await miniflare.getBindings<{ SERVICE: any }>("worker-a");
+    const id = await bindings.SERVICE.subService.id;
+
+    expect(id).toBe("test-id");
+  });
+
+  test("Returning an RpcTarget from method works", async ({ miniflare }) => {
+    const bindings = await miniflare.getBindings<{ SERVICE: any }>("worker-a");
+    const id = await bindings.SERVICE.getSubService("my-test-id").id;
+
+    expect(id).toBe("my-test-id");
   });
 });
